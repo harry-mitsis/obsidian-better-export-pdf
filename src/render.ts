@@ -159,9 +159,9 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   const comp = new Component();
   comp.load();
 
-  const printEl = document.body.createDiv("print");
-  const viewEl = printEl.createDiv({
-    cls: "markdown-preview-view markdown-rendered " + cssclasses.join(" "),
+  const printEl = document.body.createDiv({ attr: { class: "print" } });
+  const viewEl = printEl.createDiv({ 
+    attr: { class: "markdown-preview-view markdown-rendered " + cssclasses.join(" ") }
   });
   app.vault.cachedRead(file);
 

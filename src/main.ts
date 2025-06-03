@@ -195,7 +195,7 @@ export default class BetterExportPdfPlugin extends Plugin {
       document.body.removeClass("theme-dark");
     }
     document.body.removeClass("theme-dark");
-    const node = document.body.createDiv("print");
+    const node = document.body.createDiv({ attr: { class: "print" } });
 
     const reset = function () {
       node.detach();
@@ -207,9 +207,9 @@ export default class BetterExportPdfPlugin extends Plugin {
     };
     node.addEventListener("click", reset);
 
-    const el = document.body.createDiv("print");
+    const el = document.body.createDiv({ attr: { class: "print" } });
 
-    const el2 = el.createDiv("markdown-preview-view markdown-rendered");
+    const el2 = el.createDiv({ attr: { class: "markdown-preview-view markdown-rendered" } });
 
     // @ts-ignore
     el2.toggleClass("rtl", this.app.vault.getConfig("rightToLeft"));

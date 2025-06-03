@@ -1,4 +1,48 @@
-# Obsidian Better Export PDF
+# (w) Better Export PDF
+
+A fork of the Better Export PDF plugin for Obsidian, enhanced with support for including linked markdown files in PDF exports.
+
+## Features
+
+- Export your notes to PDF with more options and better formatting
+- Support for including linked markdown files in exports
+- Recursive processing of linked files
+- Hierarchical structure preservation
+- Page breaks between linked files
+- Proper heading level adjustment
+
+## Installation
+
+1. Download the latest release from the releases page
+2. Extract the files to your Obsidian plugins folder
+3. Enable the plugin in Obsidian settings
+
+## Usage
+
+1. Open the file you want to export
+2. Click the "Better Export PDF" button in the file menu
+3. Configure your export settings
+4. Click "Export" to generate the PDF
+
+## Features
+
+- Custom page sizes
+- Custom margins
+- Landscape/Portrait orientation
+- Scale options
+- Header and footer customization
+- CSS snippet support
+- Linked file inclusion
+- Hierarchical structure preservation
+
+## Author
+
+- Webranking
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 #TESTING HARRY
 English | [中文](./README.zh.md)
 

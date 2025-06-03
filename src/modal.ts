@@ -1,6 +1,7 @@
+import { App, MarkdownView, Menu, Modal, Setting, TFile, TFolder, debounce, type FrontMatterCache, type MetadataCache, type Workspace, type Vault } from "obsidian";
+import { ButtonComponent } from "obsidian";
 import * as electron from "electron";
 import * as fs from "fs/promises";
-import { ButtonComponent, type FrontMatterCache, Modal, Setting, TFile, TFolder, debounce } from "obsidian";
 import path from "path";
 import { PageSize } from "./constant";
 import i18n, { type Lang } from "./i18n";
@@ -11,6 +12,24 @@ import { isNumber, mm2px, px2mm, safeParseFloat, safeParseInt, traverseFolder } 
 import Progress from "./Progress.svelte";
 import { mount, unmount } from "svelte";
 import pLimit from "p-limit";
+
+// Add type declarations for missing properties
+declare module "obsidian" {
+    interface App {
+        metadataCache: MetadataCache;
+        workspace: Workspace;
+        vault: Vault;
+    }
+}
+
+// Add type declarations for HTML elements
+declare global {
+    interface HTMLDivElement {
+        empty(): void;
+        createDiv(options?: { attr?: { [key: string]: string }, text?: string }): HTMLDivElement;
+    }
+}
+
 export type PageSizeType = electron.PrintToPDFOptions["pageSize"];
 
 export interface TConfig {
@@ -47,6 +66,9 @@ function fullWidthButton(button: ButtonComponent) {
 function setInputWidth(inputEl: HTMLInputElement) {
   inputEl.setAttribute("style", `width: 100px;`);
 }
+
+// Add utility function for sleep
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export class ExportConfigModal extends Modal {
   config: TConfig;
@@ -105,30 +127,53 @@ export class ExportConfigModal extends Modal {
     const app = this.plugin.app;
     const data: ParamType[] = [];
     const docs: DocType[] = [];
-    if (this.file instanceof TFolder) {
-      const files = traverseFolder(this.file);
-      for (const file of files) {
-        data.push({
-          app,
-          file,
-          config: this.config,
-        });
-      }
-    } else {
-      const { doc, frontMatter, file } = await renderMarkdown({ app, file: this.file, config: this.config });
-      docs.push({ doc, frontMatter, file });
-      if (frontMatter.toc) {
-        const files = this.parseToc(doc);
-        for (const item of files) {
-          data.push({
-            app,
-            file: item.file,
-            config: this.config,
-            extra: item,
-          });
+    const processedFiles = new Set<string>(); // Track processed files to prevent recursion
+    const fileQueue: { file: TFile; depth: number }[] = []; // Queue for breadth-first processing
+
+    const processFile = async (file: TFile, depth: number = 0) => {
+        // Skip if file already processed
+        if (processedFiles.has(file.path)) {
+            return;
         }
-      }
+        processedFiles.add(file.path);
+
+        // Get the file's content and frontmatter
+        const { doc, frontMatter } = await renderMarkdown({ app, file, config: this.config });
+        docs.push({ doc, frontMatter, file });
+
+        // Get all links from the file
+        const cache = app.metadataCache.getFileCache(file);
+        const links = cache?.links ?? [];
+
+        // Add linked files to queue for processing
+        for (const { link } of links) {
+            const linkedFile = app.metadataCache.getFirstLinkpathDest(link, file.path);
+            if (linkedFile instanceof TFile && !processedFiles.has(linkedFile.path)) {
+                fileQueue.push({ file: linkedFile, depth: depth + 1 });
+            }
+        }
+    };
+
+    if (this.file instanceof TFolder) {
+        const files = traverseFolder(this.file);
+        for (const file of files) {
+            data.push({
+                app,
+                file,
+                config: this.config,
+            });
+        }
+    } else {
+        // Start with the main file
+        fileQueue.push({ file: this.file as TFile, depth: 0 });
+        
+        // Process files in breadth-first order
+        while (fileQueue.length > 0) {
+            const { file, depth } = fileQueue.shift()!;
+            await processFile(file, depth);
+        }
     }
+
     return { data, docs };
   }
 
@@ -159,47 +204,99 @@ export class ExportConfigModal extends Modal {
   }
   parseToc(doc: Document) {
     const cache = this.getFileCache(this.file as TFile);
-    const files =
-      cache?.links
+    const linkMap = new Map<string, string>(); // Map to store consistent IDs for links
+    
+    const files = cache?.links
         ?.map(({ link, displayText }) => {
-          const id = crypto.randomUUID();
-          const elem = doc.querySelector(`a[data-href="${link}"]`) as HTMLAnchorElement;
-          if (elem) {
-            elem.href = `#${id}`;
-          }
-          return {
-            title: displayText,
-            file: this.app.metadataCache.getFirstLinkpathDest(link, this.file.path) as TFile,
-            id,
-          };
+            // Generate or retrieve consistent ID for this link
+            let id = linkMap.get(link);
+            if (!id) {
+                id = `link-${link.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                linkMap.set(link, id);
+            }
+            
+            // Update all matching links in the document
+            const elements = doc.querySelectorAll(`a[data-href="${link}"]`);
+            elements.forEach((elem) => {
+                if (elem instanceof HTMLAnchorElement) {
+                    elem.href = `#${id}`;
+                    // Preserve the original link text if it's different from the display text
+                    if (elem.textContent !== displayText && displayText) {
+                        elem.title = displayText;
+                    }
+                }
+            });
+            
+            const linkedFile = this.app.metadataCache.getFirstLinkpathDest(link, this.file.path);
+            return {
+                title: displayText,
+                file: linkedFile,
+                id,
+            };
         })
         .filter((item) => item.file instanceof TFile) ?? [];
+        
     return files;
   }
 
   mergeDoc(docs: DocType[]) {
     const { doc: doc0, frontMatter, file } = docs[0];
     const sections = [];
-    for (const { doc } of docs) {
-      const element = doc.querySelector(".markdown-preview-view");
-
-      if (element) {
-        const section = doc0.createElement("section");
-        Array.from(element.children).forEach((child) => {
-          section.appendChild(doc0.importNode(child, true));
-        });
-
-        sections.push(section);
-      }
+    
+    // Process each document
+    for (const { doc, file: sourceFile } of docs) {
+        const element = doc.querySelector(".markdown-preview-view");
+        if (element) {
+            const section = doc0.createElement("section");
+            section.className = "linked-file-section";
+            
+            // Add a header for each section (except the main document)
+            if (sourceFile.path !== file.path) {
+                const header = doc0.createElement("h1");
+                header.textContent = sourceFile.basename;
+                header.className = "linked-file-header";
+                section.appendChild(header);
+                
+                // Add a page break before each linked file section
+                section.style.pageBreakBefore = "always";
+            }
+            
+            // Copy the content while preserving structure
+            Array.from(element.children).forEach((child) => {
+                const importedNode = doc0.importNode(child, true);
+                
+                // Preserve heading levels and structure
+                if (importedNode instanceof HTMLElement) {
+                    // Add source file information as data attribute
+                    importedNode.dataset.sourceFile = sourceFile.path;
+                    
+                    // Ensure proper heading hierarchy
+                    if (importedNode.tagName.startsWith('H') && sourceFile.path !== file.path) {
+                        const level = parseInt(importedNode.tagName[1]);
+                        if (level < 6) {
+                            const newHeading = doc0.createElement(`h${level + 1}`);
+                            newHeading.innerHTML = importedNode.innerHTML;
+                            importedNode.parentNode?.replaceChild(newHeading, importedNode);
+                        }
+                    }
+                }
+                
+                section.appendChild(importedNode);
+            });
+            
+            sections.push(section);
+        }
     }
+    
+    // Merge all sections into the main document
     const root = doc0.querySelector(".markdown-preview-view");
     if (root) {
-      root.innerHTML = "";
+        root.innerHTML = "";
+        sections.forEach((section) => {
+            root.appendChild(section);
+        });
     }
-    sections.forEach((section) => {
-      root?.appendChild(section);
-    });
-
+    
     return [{ doc: doc0, frontMatter, file }];
   }
 
@@ -334,15 +431,16 @@ export class ExportConfigModal extends Modal {
 
     const title = (this.file as TFile)?.basename ?? this.file?.name;
 
-    this.previewDiv = wrapper.createDiv({ attr: { class: "pdf-preview" } }, async (el) => {
-      el.empty();
-      const resizeObserver = new ResizeObserver(() => {
-        this.calcPageSize(el);
-      });
-      resizeObserver.observe(el);
-      await this.appendWebviews(el);
-      this.togglePrintSize();
+    this.previewDiv = wrapper.createDiv({ 
+      attr: { class: "pdf-preview" }
     });
+    
+    const resizeObserver = new ResizeObserver(() => {
+      this.calcPageSize(this.previewDiv);
+    });
+    resizeObserver.observe(this.previewDiv);
+    await this.appendWebviews(this.previewDiv);
+    this.togglePrintSize();
 
     const contentEl = wrapper.createDiv({ attr: { class: "setting-wrapper" } });
     contentEl.addEventListener("keyup", (event) => {
