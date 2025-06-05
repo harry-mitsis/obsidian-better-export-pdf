@@ -1,4 +1,4 @@
-# (w) Better Export PDF
+# Better Export PDF
 
 A fork of the Better Export PDF plugin for Obsidian, enhanced with support for including linked markdown files in PDF exports.
 
@@ -35,15 +35,12 @@ A fork of the Better Export PDF plugin for Obsidian, enhanced with support for i
 - Linked file inclusion
 - Hierarchical structure preservation
 
-## Author
-
-- Webranking
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 #TESTING HARRY
+
 English | [中文](./README.zh.md)
 
 Better Export PDF is an Obsidian PDF export enhancement plugin that adds the ability to export bookmarks outline, export preview and add page numbers to PDF compared to the official PDF export function.
