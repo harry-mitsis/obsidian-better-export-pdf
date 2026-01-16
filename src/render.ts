@@ -86,6 +86,20 @@ body {
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  h1,
+  h2,
+  h3 {
+    margin-top: 0.6em;
+    margin-bottom: 0.4em;
+  }
+  p,
+  ul,
+  ol,
+  pre,
+  table {
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
+  }
   pre,
   blockquote,
   table,
@@ -100,6 +114,15 @@ body {
   }
   ul,
   ol {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  td,
+  th {
     break-inside: avoid;
     page-break-inside: avoid;
   }
