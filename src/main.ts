@@ -36,8 +36,8 @@ const DEFAULT_SETTINGS: BetterExportPdfPluginSettings = {
 
   displayHeader: true,
   displayFooter: true,
-  headerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="title"></span></div>`,
-  footerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
+  headerTemplate: `<div style="width: 100vw; font-size: 10px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center;"><span class="title"></span><span class="date"></span></div>`,
+  footerTemplate: `<div style="width: 100vw; font-size: 10px; padding: 0 24px; text-align: center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
 
   printBackground: false,
   generateTaggedPDF: false,

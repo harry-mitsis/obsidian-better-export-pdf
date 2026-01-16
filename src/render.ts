@@ -69,6 +69,44 @@ body {
     break-after: auto;
   }
 }
+@media print {
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  pre,
+  blockquote,
+  table,
+  figure,
+  img,
+  svg,
+  .callout,
+  .markdown-embed,
+  .mermaid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  ul,
+  ol {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+}
 
 img.__canvas__ {
   width: 100% !important;

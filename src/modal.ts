@@ -113,7 +113,7 @@ export class ExportConfigModal extends Modal {
       marginLeft: "10",
       marginRight: "10",
       displayHeader: plugin.settings.displayHeader ?? true,
-      displayFooter: plugin.settings.displayHeader ?? true,
+      displayFooter: plugin.settings.displayFooter ?? true,
       cssSnippet: "0",
       ...(plugin.settings?.prevConfig ?? {}),
     } as TConfig;
